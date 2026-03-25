@@ -34,6 +34,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Basic route so visiting the backend URL in a browser doesn't show a 404 error
+app.get('/', (req, res) => {
+  res.send('Competition App API is running and healthy!');
+});
+
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/goals', require('./routes/goalRoutes'));
