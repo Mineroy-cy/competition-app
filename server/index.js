@@ -41,6 +41,14 @@ const apiLimiter = rateLimit({
     message: 'Too many requests from this IP, please try again after 15 minutes',
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req, res) => {
+      // Get IP from X-Forwarded-For header if available (Render/proxy), otherwise use req.ip
+      return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
+    },
+    skip: (req, res) => {
+      // Skip rate limiting for health check
+      return req.path === '/';
+    }
 });
 app.use('/api', apiLimiter);
 
