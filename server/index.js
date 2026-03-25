@@ -19,7 +19,6 @@ const app = express();
 app.set('trust proxy', 1);
 
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 
 // Use Helmet for basic security headers
 app.use(helmet());
