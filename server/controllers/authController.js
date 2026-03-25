@@ -9,6 +9,8 @@ const User = require('../models/User');
 const registerUser = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body;
 
+  console.log('Registration attempt:', { username, email });
+
   if (!username || !email || !password) {
     res.status(400);
     throw new Error('Please add all fields');
@@ -29,23 +31,33 @@ const registerUser = asyncHandler(async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, salt);
 
   // Create user
-  const user = await User.create({
-    username,
-    email,
-    password: hashedPassword,
-  });
-
-  if (user) {
-    res.status(201).json({
-      _id: user.id,
-      username: user.username,
-      email: user.email,
-      profilePhoto: user.profilePhoto,
-      token: generateToken(user._id),
+  console.log('Creating user in database...');
+  try {
+    const user = await User.create({
+      username,
+      email,
+      password: hashedPassword,
     });
-  } else {
+
+    console.log('User created successfully:', user._id);
+
+    if (user) {
+      res.status(201).json({
+        _id: user.id,
+        username: user.username,
+        email: user.email,
+        profilePhoto: user.profilePhoto,
+        token: generateToken(user._id),
+      });
+    } else {
+      res.status(400);
+      throw new Error('Invalid user data');
+    }
+  } catch (error) {
+    console.error('Error creating user:', error.message);
+    console.error('Full error:', error);
     res.status(400);
-    throw new Error('Invalid user data');
+    throw new Error(`Failed to create user: ${error.message}`);
   }
 });
 
