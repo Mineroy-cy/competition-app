@@ -19,24 +19,31 @@ const rateLimit = require('express-rate-limit');
 
 // Use Helmet for basic security headers
 app.use(helmet());
+app.use(cors({
+  origin: [
+    process.env.CLIENT_URL,
+    "http://localhost:5173"
+  ],
+  credentials: true
+}));
 
-// Apply rate limiting to all API requests
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again after 15 minutes',
-  standardHeaders: true, 
-  legacyHeaders: false, 
-});
-app.use('/api', apiLimiter);
-
-app.use(cors());
+// Parse JSON completely BEFORE any other stream-reliant middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Apply rate limiting to all API requests
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again after 15 minutes',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+app.use('/api', apiLimiter);
+
 // Basic route so visiting the backend URL in a browser doesn't show a 404 error
 app.get('/', (req, res) => {
-  res.send('Competition App API is running and healthy!');
+    res.send('Competition App API is running and healthy!');
 });
 
 // Routes
@@ -48,12 +55,12 @@ app.use('/api/weeks', require('./routes/weekRoutes'));
 
 // Custom Error Handler so the frontend can read the exact backend crash reason
 app.use((err, req, res, next) => {
-  const statusCode = res.statusCode ? res.statusCode : 500;
-  res.status(statusCode);
-  res.json({
-    message: err.message,
-    stack: process.env.NODE_ENV === 'production' ? null : err.stack,
-  });
+    const statusCode = res.statusCode ? res.statusCode : 500;
+    res.status(statusCode);
+    res.json({
+        message: err.message,
+        stack: process.env.NODE_ENV === 'production' ? null : err.stack,
+    });
 });
 
 const port = process.env.PORT || 5000;
