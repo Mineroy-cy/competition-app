@@ -14,6 +14,9 @@ startCronJobs();
 
 const app = express();
 
+// Trust proxy - required for rate limiting to work properly on hosted services like Render
+app.set('trust proxy', 1);
+
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
