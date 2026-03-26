@@ -3,30 +3,43 @@ import axiosInstance from '../api/axiosInstance';
 import { Target, CheckCircle, Flame, Calendar as CalendarIcon, Activity } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { format, getDay, isAfter, isToday, startOfWeek, addDays, isSameDay } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
+  const navigate = useNavigate();
 
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedGoalForDay, setSelectedGoalForDay] = useState(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
+      if (!user?.token) {
+        setLoading(false);
+        navigate('/login');
+        return;
+      }
+
       try {
         const res = await axiosInstance.get('/goals');
         setStats(res.data.stats);
         setGoals(res.data.goals);
       } catch (err) {
+        if (err.response?.status === 401) {
+          logout();
+          navigate('/login');
+          return;
+        }
         console.error(err);
       } finally {
         setLoading(false);
       }
     };
     fetchDashboardData();
-  }, []);
+  }, [user, logout, navigate]);
 
   // Calculate Daily Activity Timeline data (Monday - Sunday)
   const timelineData = useMemo(() => {
