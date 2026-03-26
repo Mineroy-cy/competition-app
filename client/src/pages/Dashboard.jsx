@@ -19,7 +19,7 @@ const Dashboard = () => {
     const fetchDashboardData = async () => {
       if (!user?.token) {
         setLoading(false);
-        navigate('/login');
+        navigate('/login', { replace: true });
         return;
       }
 
@@ -30,7 +30,7 @@ const Dashboard = () => {
       } catch (err) {
         if (err.response?.status === 401) {
           logout();
-          navigate('/login');
+          navigate('/login', { replace: true });
           return;
         }
         console.error(err);

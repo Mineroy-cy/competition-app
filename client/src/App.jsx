@@ -13,7 +13,7 @@ import Profile from './pages/Profile';
 
 const ProtectedRoute = ({ children }) => {
   const { user } = useContext(AuthContext);
-  if (!user) {
+  if (!user?.token) {
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -21,10 +21,11 @@ const ProtectedRoute = ({ children }) => {
 
 function App() {
   const { user } = useContext(AuthContext);
+  const isAuthenticated = Boolean(user?.token);
 
   return (
     <Routes>
-      <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
+      <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />} />
       
       <Route path="/" element={
         <ProtectedRoute>

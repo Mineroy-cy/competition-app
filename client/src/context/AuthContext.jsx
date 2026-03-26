@@ -11,7 +11,12 @@ export const AuthProvider = ({ children }) => {
     // Check if user is logged in
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      if (parsedUser?.token) {
+        setUser(parsedUser);
+      } else {
+        localStorage.removeItem('user');
+      }
     }
     setLoading(false);
   }, []);
