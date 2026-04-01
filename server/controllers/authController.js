@@ -7,13 +7,24 @@ const User = require('../models/User');
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-  const { username, email, password } = req.body || {};
+  const body = req.body || {};
+  const { username, email, password } = body;
 
   console.log('Registration attempt:', { username, email });
 
-  if (!username || !email || !password) {
+  if (Object.keys(body).length === 0) {
     res.status(400);
-    throw new Error('Please add all fields');
+    throw new Error('Request body is missing. Ensure Content-Type is application/json and JSON payload is sent.');
+  }
+
+  const missingFields = [];
+  if (!username || !String(username).trim()) missingFields.push('username');
+  if (!email || !String(email).trim()) missingFields.push('email');
+  if (!password || !String(password).trim()) missingFields.push('password');
+
+  if (missingFields.length > 0) {
+    res.status(400);
+    throw new Error(`Missing required field(s): ${missingFields.join(', ')}`);
   }
 
   // Check if user exists
