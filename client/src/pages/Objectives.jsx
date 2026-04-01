@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axiosInstance from '../api/axiosInstance';
 import { Plus, Check, Image as ImageIcon, Briefcase, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { AuthContext } from '../context/AuthContext';
 
 const Objectives = () => {
   const [goals, setGoals] = useState([]);
@@ -12,7 +13,7 @@ const Objectives = () => {
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState({ show: false, goalId: null });
   const [showCompleteModal, setShowCompleteModal] = useState({ show: false, taskId: null });
-  const [showProofModal, setShowProofModal] = useState({ show: false, task: null });
+  const { login, register, refreshUser } = useContext(AuthContext);
   
   // Form states
   const [goalForm, setGoalForm] = useState({ name: '', description: '' });
@@ -40,6 +41,12 @@ const Objectives = () => {
 
   useEffect(() => {
     fetchGoals();
+
+    const intervalId = setInterval(() => {
+      fetchGoals();
+    }, 20000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   const handleAddGoal = async (e) => {
@@ -73,6 +80,7 @@ const Objectives = () => {
     e.preventDefault();
     try {
       await axiosInstance.post('/tasks', { ...taskForm, goalId: showTaskModal.goalId });
+      await refreshUser?.();
       setTaskForm({ name: '', description: '' });
       setShowTaskModal({ show: false, goalId: null });
       setSuggestion('');
@@ -99,6 +107,7 @@ const Objectives = () => {
           'Content-Type': 'multipart/form-data'
         }
       });
+      await refreshUser?.();
       setShowCompleteModal({ show: false, taskId: null });
       setProofImage(null);
       setProofForm({ proofSummary: '', completionSatisfaction: '3', obstacles: '', whatNotDone: '' });

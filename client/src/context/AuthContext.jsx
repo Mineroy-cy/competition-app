@@ -7,6 +7,29 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const refreshUser = async () => {
+    const storedUser = localStorage.getItem('user');
+    if (!storedUser) return null;
+
+    const parsedUser = JSON.parse(storedUser);
+    if (!parsedUser?.token) return null;
+
+    try {
+      const response = await axiosInstance.get('/auth/me');
+      const hydratedUser = {
+        ...response.data,
+        token: parsedUser.token,
+      };
+      localStorage.setItem('user', JSON.stringify(hydratedUser));
+      setUser(hydratedUser);
+      return hydratedUser;
+    } catch (error) {
+      localStorage.removeItem('user');
+      setUser(null);
+      return null;
+    }
+  };
+
   useEffect(() => {
     const hydrateUser = async () => {
       // Check if user is logged in
@@ -23,24 +46,22 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      try {
-        const response = await axiosInstance.get('/auth/me');
-        const hydratedUser = {
-          ...response.data,
-          token: parsedUser.token,
-        };
-        localStorage.setItem('user', JSON.stringify(hydratedUser));
-        setUser(hydratedUser);
-      } catch (error) {
-        localStorage.removeItem('user');
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
+      await refreshUser();
+      setLoading(false);
     };
 
     hydrateUser();
   }, []);
+
+  useEffect(() => {
+    if (!user?.token) return undefined;
+
+    const interval = setInterval(() => {
+      refreshUser();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [user?.token]);
 
   const login = async (userData) => {
     const payload = {
@@ -85,7 +106,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, refreshUser, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );

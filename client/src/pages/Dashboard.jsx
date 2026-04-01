@@ -39,6 +39,14 @@ const Dashboard = () => {
       }
     };
     fetchDashboardData();
+
+    const intervalId = setInterval(() => {
+      if (user?.token) {
+        fetchDashboardData();
+      }
+    }, 20000);
+
+    return () => clearInterval(intervalId);
   }, [user, logout, navigate]);
 
   // Calculate Daily Activity Timeline data (Monday - Sunday)

@@ -5,7 +5,7 @@ import { format, startOfWeek, addDays, isSameDay, isAfter, isToday } from 'date-
 import { AuthContext } from '../context/AuthContext';
 
 const Groups = () => {
-  const { user } = useContext(AuthContext);
+  const { user, refreshUser } = useContext(AuthContext);
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -38,6 +38,17 @@ const Groups = () => {
   useEffect(() => {
     fetchGroups();
   }, []);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchGroups();
+      if (selectedGroup?.group?._id) {
+        handleSelectGroup(selectedGroup.group._id);
+      }
+    }, 20000);
+
+    return () => clearInterval(intervalId);
+  }, [selectedGroup?.group?._id]);
 
   const handleSelectGroup = async (id) => {
     try {
@@ -98,6 +109,7 @@ const Groups = () => {
     try {
       await axiosInstance.post(`/groups/${selectedGroup.group._id}/streak-freeze/request`);
       await handleSelectGroup(selectedGroup.group._id);
+      await refreshUser?.();
       alert('Streak freeze requested for yesterday. Waiting for group votes.');
     } catch (err) {
       alert(err.response?.data?.message || 'Could not request streak freeze');
@@ -112,6 +124,7 @@ const Groups = () => {
     try {
       await axiosInstance.post(`/groups/${selectedGroup.group._id}/streak-freeze/${freezeId}/vote`, { vote });
       await handleSelectGroup(selectedGroup.group._id);
+      await refreshUser?.();
     } catch (err) {
       alert(err.response?.data?.message || 'Could not submit vote');
     } finally {
@@ -190,7 +203,7 @@ const Groups = () => {
       </div>
 
       {/* Main Group View */}
-      <div className="flex-1 glass-panel rounded-2xl p-4 md:p-8 overflow-y-auto relative custom-scrollbar min-h-[420px]">
+      <div className="flex-1 glass-panel rounded-2xl p-4 md:p-8 overflow-y-auto relative custom-scrollbar min-h-105">
         {!selectedGroup ? (
           <div className="h-full flex flex-col items-center justify-center text-center">
             <Trophy size={64} className="text-gray-600 mb-4" />
