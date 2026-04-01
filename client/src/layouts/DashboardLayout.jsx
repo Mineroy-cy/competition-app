@@ -67,7 +67,7 @@ const Sidebar = () => {
       </div>
 
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-dark-card/95 backdrop-blur border-t border-dark-border px-2 py-2">
-        <div className="grid grid-cols-5 gap-1">
+        <div className="grid grid-cols-6 gap-1">
           {navLinks.map((link) => (
             <NavLink
               key={link.name}
@@ -82,6 +82,15 @@ const Sidebar = () => {
               <span className="mt-1 leading-none">{link.name}</span>
             </NavLink>
           ))}
+          <button
+            onClick={handleLogout}
+            className="flex flex-col items-center justify-center rounded-lg py-2 text-[11px] text-red-400"
+            aria-label="Logout"
+            type="button"
+          >
+            <LogOut size={20} />
+            <span className="mt-1 leading-none">Logout</span>
+          </button>
         </div>
       </div>
     </>

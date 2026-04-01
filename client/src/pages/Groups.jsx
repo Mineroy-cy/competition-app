@@ -392,8 +392,8 @@ const Groups = () => {
               <X size={24} />
             </button>
             
-            <div className="flex items-center space-x-4 mb-8">
-              <div className="w-16 h-16 rounded-full bg-brand-primary/20 flex items-center justify-center text-brand-primary font-bold text-2xl border-2 border-brand-primary/50">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
+              <div className="w-16 h-16 shrink-0 rounded-full bg-brand-primary/20 flex items-center justify-center text-brand-primary font-bold text-2xl border-2 border-brand-primary/50">
                 {selectedMemberStats.user.username.charAt(0)}
               </div>
               <div>
@@ -403,9 +403,9 @@ const Groups = () => {
             </div>
 
             {/* Daily Activity Graph */}
-            <div className="bg-dark-bg/50 border border-dark-border p-6 rounded-2xl mb-8">
+            <div className="bg-dark-bg/50 border border-dark-border p-4 md:p-6 rounded-2xl mb-8 overflow-x-auto">
               <h4 className="text-white font-bold mb-6 flex items-center"><Activity size={18} className="mr-2 text-brand-secondary" /> Daily Activity Graph</h4>
-               <div className="flex justify-between items-end relative">
+               <div className="flex justify-between items-end relative min-w-160 md:min-w-0">
                   <div className="absolute top-1/2 left-0 right-0 h-1 bg-dark-border -translate-y-6 z-0 rounded-full"></div>
                   {timelineData.map((day, idx) => {
                     let nodeColor = "bg-gray-600 border-gray-500 text-gray-400"; 
@@ -435,7 +435,7 @@ const Groups = () => {
                 <p className="text-gray-500 italic col-span-2">This user has no active goals for the week.</p>
               ) : (
                 selectedMemberStats.goals.map((goal) => (
-                  <div key={goal._id} className="bg-dark-bg/30 border border-dark-border p-5 rounded-xl">
+                  <div key={goal._id} className="bg-dark-bg/30 border border-dark-border p-4 md:p-5 rounded-xl">
                      <div className="flex justify-between items-start mb-2">
                         <h4 className="font-bold text-white">{goal.name}</h4>
                         <span className="text-xs font-bold text-brand-primary border border-dark-border px-2 py-1 rounded bg-dark-bg">{goal.taskCount} Tasks</span>
@@ -444,7 +444,7 @@ const Groups = () => {
                        <span className="text-xs font-medium text-gray-500">Completed: {goal.completedTaskCount}</span>
                        <span className="text-xl font-bold text-brand-secondary">{goal.progress}%</span>
                      </div>
-                     <div className="w-full bg-dark-border rounded-full h-1.5">
+                     <div className="w-full bg-dark-border rounded-full h-1.5 overflow-hidden">
                        <div 
                          className={`h-1.5 rounded-full ${goal.progress === 100 ? 'bg-brand-accent' : 'bg-brand-secondary'}`}
                          style={{ width: `${goal.progress}%` }}
