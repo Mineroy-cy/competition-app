@@ -58,6 +58,19 @@ app.use('/api/auth', express.json({
   },
 }));
 
+// Resilient parser for goal endpoints: tolerate missing/incorrect content-type for JSON payloads.
+app.use('/api/goals', express.json({
+  type: (req) => {
+    const contentType = req.headers['content-type'] || '';
+    return (
+      !contentType ||
+      contentType.includes('application/json') ||
+      contentType.includes('application/*+json') ||
+      contentType.includes('text/plain')
+    );
+  },
+}));
+
 // Temporary auth diagnostics: verifies incoming content-type and parsed body shape.
 app.use('/api/auth', (req, res, next) => {
   const bodyKeys = req.body && typeof req.body === 'object' ? Object.keys(req.body) : [];

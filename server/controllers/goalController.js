@@ -55,14 +55,21 @@ const getGoals = asyncHandler(async (req, res) => {
 // @route   POST /api/goals
 // @access  Private
 const setGoal = asyncHandler(async (req, res) => {
-  if (!req.body.name) {
+  const body = req.body || {};
+
+  if (Object.keys(body).length === 0) {
+    res.status(400);
+    throw new Error('Request body is missing. Ensure Content-Type is application/json and JSON payload is sent.');
+  }
+
+  if (!body.name || !String(body.name).trim()) {
     res.status(400);
     throw new Error('Please add a goal name');
   }
 
   const goal = await Goal.create({
-    name: req.body.name,
-    description: req.body.description,
+    name: String(body.name).trim(),
+    description: body.description,
     user: req.user.id,
   });
 
