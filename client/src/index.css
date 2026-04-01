@@ -13,7 +13,7 @@
   body {
     background-color: var(--color-dark-bg);
     color: #e2e8f0;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, system-ui, sans-serif;
   }
 }
 

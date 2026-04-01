@@ -22,7 +22,16 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (userData) => {
-    const response = await axiosInstance.post('/auth/login', userData);
+    const payload = {
+      email: userData?.email,
+      password: userData?.password,
+    };
+
+    const response = await axiosInstance.post('/auth/login', payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
     if (response.data) {
       localStorage.setItem('user', JSON.stringify(response.data));
       setUser(response.data);
@@ -31,7 +40,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (userData) => {
-    const response = await axiosInstance.post('/auth/register', userData);
+    const payload = {
+      username: userData?.username,
+      email: userData?.email,
+      password: userData?.password,
+    };
+
+    const response = await axiosInstance.post('/auth/register', payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
     if (response.data) {
       localStorage.setItem('user', JSON.stringify(response.data));
       setUser(response.data);

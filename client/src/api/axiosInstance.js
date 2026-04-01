@@ -10,7 +10,15 @@ axiosInstance.interceptors.request.use(
   (config) => {
     const requestPath = config.url || '';
     const isPublicAuthRoute = requestPath.includes('/auth/login') || requestPath.includes('/auth/register');
-    const user = JSON.parse(localStorage.getItem('user'));
+    const storedUser = localStorage.getItem('user');
+    const user = storedUser ? JSON.parse(storedUser) : null;
+
+    const isWriteMethod = ['post', 'put', 'patch'].includes((config.method || '').toLowerCase());
+    const isFormData = typeof FormData !== 'undefined' && config.data instanceof FormData;
+
+    if (isWriteMethod && !isFormData) {
+      config.headers['Content-Type'] = 'application/json';
+    }
 
     if (!isPublicAuthRoute && user && user.token) {
       config.headers['Authorization'] = `Bearer ${user.token}`;
