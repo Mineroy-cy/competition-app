@@ -13,6 +13,7 @@ const Objectives = () => {
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState({ show: false, goalId: null });
   const [showCompleteModal, setShowCompleteModal] = useState({ show: false, taskId: null });
+  const [showProofModal, setShowProofModal] = useState({ show: false, task: null });
   const { refreshUser } = useContext(AuthContext);
   
   // Form states
