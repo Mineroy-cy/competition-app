@@ -36,7 +36,8 @@ app.use(helmet());
 app.use(cors({
   origin: [
     process.env.CLIENT_URL,
-    "http://localhost:5173"
+    "http://localhost:5173",
+    "competition-app-six.vercel.app"
   ],
   credentials: true
 }));
