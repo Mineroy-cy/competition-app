@@ -33,14 +33,34 @@ const helmet = require('helmet');
 
 // Use Helmet for basic security headers
 app.use(helmet());
-app.use(cors({
-  origin: [
-    process.env.CLIENT_URL,
-    "http://localhost:5173",
-    "competition-app-six.vercel.app"
-  ],
-  credentials: true
-}));
+
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+  'https://competition-app-six.vercel.app',
+].filter(Boolean);
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow non-browser requests (no Origin header)
+    if (!origin) return callback(null, true);
+
+    const isExactAllowed = allowedOrigins.includes(origin);
+    const isVercelPreview = /^https:\/\/competition-app-.*\.vercel\.app$/i.test(origin);
+
+    if (isExactAllowed || isVercelPreview) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 
 // Parse JSON completely BEFORE any other stream-reliant middleware
 app.use(express.json());
