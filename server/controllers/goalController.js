@@ -89,6 +89,7 @@ const setGoal = asyncHandler(async (req, res) => {
 // @access  Private
 const updateGoal = asyncHandler(async (req, res) => {
   const goal = await Goal.findById(req.params.id);
+  const body = req.body || {};
 
   if (!goal) {
     res.status(400);
@@ -107,7 +108,12 @@ const updateGoal = asyncHandler(async (req, res) => {
     throw new Error('User not authorized');
   }
 
-  const updatedGoal = await Goal.findByIdAndUpdate(req.params.id, req.body, {
+  if (Object.keys(body).length === 0) {
+    res.status(400);
+    throw new Error('Request body is missing. Ensure Content-Type is application/json and JSON payload is sent.');
+  }
+
+  const updatedGoal = await Goal.findByIdAndUpdate(req.params.id, body, {
     new: true,
   });
 

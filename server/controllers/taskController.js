@@ -6,9 +6,15 @@ const Goal = require('../models/Goal');
 // @route   POST /api/tasks
 // @access  Private
 const addTask = asyncHandler(async (req, res) => {
-  const { name, description, goalId } = req.body;
+  const body = req.body || {};
+  const { name, description, goalId } = body;
 
-  if (!name || !goalId) {
+  if (Object.keys(body).length === 0) {
+    res.status(400);
+    throw new Error('Request body is missing. Ensure Content-Type is application/json and JSON payload is sent.');
+  }
+
+  if (!name || !String(name).trim() || !goalId) {
     res.status(400);
     throw new Error('Please add a task name and goal ID');
   }
@@ -21,7 +27,7 @@ const addTask = asyncHandler(async (req, res) => {
   }
 
   const task = await Task.create({
-    name,
+    name: String(name).trim(),
     description,
     goal: goalId,
     user: req.user.id
@@ -46,15 +52,16 @@ const completeTask = asyncHandler(async (req, res) => {
     throw new Error('User not authorized');
   }
 
-  const { proofSummary, completionSatisfaction, obstacles, whatNotDone } = req.body;
+  const body = req.body || {};
+  const { proofSummary, completionSatisfaction, obstacles, whatNotDone } = body;
 
   let uploadedImages = [];
   if (req.files && req.files.length > 0) {
     uploadedImages = req.files.map(file => file.path || `https://placehold.co/300x300?text=Mock+Upload+${file.originalname}`);
-  } else if (req.body.mockImages) {
-    uploadedImages = Array.isArray(req.body.mockImages) ? req.body.mockImages : [req.body.mockImages];
-  } else if (req.body['mockImages[]']) {
-    uploadedImages = Array.isArray(req.body['mockImages[]']) ? req.body['mockImages[]'] : [req.body['mockImages[]']];
+  } else if (body.mockImages) {
+    uploadedImages = Array.isArray(body.mockImages) ? body.mockImages : [body.mockImages];
+  } else if (body['mockImages[]']) {
+    uploadedImages = Array.isArray(body['mockImages[]']) ? body['mockImages[]'] : [body['mockImages[]']];
   } else {
     // Failsafe so the frontend doesn't crash during testing
     uploadedImages = ['https://placehold.co/300x300?text=Failsafe+Mock'];

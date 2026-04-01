@@ -18,11 +18,18 @@ const getGroups = asyncHandler(async (req, res) => {
 });
 
 const createGroup = asyncHandler(async (req, res) => {
-  if (!req.body.name) { res.status(400); throw new Error('Please add a group name'); }
+  const body = req.body || {};
+
+  if (Object.keys(body).length === 0) {
+    res.status(400);
+    throw new Error('Request body is missing. Ensure Content-Type is application/json and JSON payload is sent.');
+  }
+
+  if (!body.name || !String(body.name).trim()) { res.status(400); throw new Error('Please add a group name'); }
   const inviteCode = generateInviteCode();
   const group = await Group.create({
-    name: req.body.name,
-    description: req.body.description,
+    name: String(body.name).trim(),
+    description: body.description,
     inviteCode: inviteCode,
     creator: req.user.id,
     members: [req.user.id],
@@ -32,7 +39,7 @@ const createGroup = asyncHandler(async (req, res) => {
 });
 
 const joinGroup = asyncHandler(async (req, res) => {
-  const { inviteCode } = req.body;
+  const { inviteCode } = req.body || {};
   if (!inviteCode) { res.status(400); throw new Error('Please provide an invite code'); }
   const group = await Group.findOne({ inviteCode: inviteCode.toUpperCase() });
   if (!group) { res.status(404); throw new Error('Group not found with that invite code'); }
