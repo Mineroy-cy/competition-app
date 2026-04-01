@@ -21,49 +21,70 @@ const Sidebar = () => {
   ];
 
   return (
-    <div className="w-64 border-r border-dark-border bg-dark-card flex flex-col h-screen fixed">
-      <div className="p-6">
-        <h1 className="text-2xl font-bold gradient-text pb-2 px-2">Competition</h1>
-      </div>
-      
-      <div className="flex-1 px-4 space-y-2 mt-4">
-        {navLinks.map((link) => (
-          <NavLink
-            key={link.name}
-            to={link.path}
-            className={({ isActive }) =>
-              `flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                isActive
-                  ? 'bg-brand-primary/10 text-brand-primary'
-                  : 'text-gray-400 hover:bg-white/5 hover:text-white'
-              }`
-            }
+    <>
+      <div className="hidden md:flex w-64 border-r border-dark-border bg-dark-card flex-col h-screen fixed">
+        <div className="p-6">
+          <h1 className="text-2xl font-bold gradient-text pb-2 px-2">Competition</h1>
+        </div>
+
+        <div className="flex-1 px-4 space-y-2 mt-4">
+          {navLinks.map((link) => (
+            <NavLink
+              key={link.name}
+              to={link.path}
+              className={({ isActive }) =>
+                `flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                  isActive
+                    ? 'bg-brand-primary/10 text-brand-primary'
+                    : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                }`
+              }
+            >
+              {link.icon}
+              <span className="font-medium">{link.name}</span>
+            </NavLink>
+          ))}
+        </div>
+
+        <div className="p-4 border-t border-dark-border">
+          <div className="flex items-center space-x-3 p-3">
+            <div className="w-10 h-10 rounded-full bg-brand-primary flex items-center justify-center text-white font-bold uppercase">
+              {user?.username?.charAt(0) || 'U'}
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <p className="text-sm font-medium text-white truncate">{user?.username}</p>
+              <p className="text-xs text-gray-500 truncate">Streak: {user?.currentStreak || 0} 🔥</p>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="mt-2 w-full flex items-center justify-center space-x-2 px-4 py-2 rounded-lg text-red-400 hover:bg-red-400/10 transition-colors"
           >
-            {link.icon}
-            <span className="font-medium">{link.name}</span>
-          </NavLink>
-        ))}
+            <LogOut size={16} />
+            <span>Logout</span>
+          </button>
+        </div>
       </div>
 
-      <div className="p-4 border-t border-dark-border">
-        <div className="flex items-center space-x-3 p-3">
-          <div className="w-10 h-10 rounded-full bg-brand-primary flex items-center justify-center text-white font-bold uppercase">
-            {user?.username?.charAt(0) || 'U'}
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-medium text-white truncate">{user?.username}</p>
-            <p className="text-xs text-gray-500 truncate">Streak: {user?.currentStreak || 0} 🔥</p>
-          </div>
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-dark-card/95 backdrop-blur border-t border-dark-border px-2 py-2">
+        <div className="grid grid-cols-5 gap-1">
+          {navLinks.map((link) => (
+            <NavLink
+              key={link.name}
+              to={link.path}
+              className={({ isActive }) =>
+                `flex flex-col items-center justify-center rounded-lg py-2 text-[11px] ${
+                  isActive ? 'text-brand-primary bg-brand-primary/10' : 'text-gray-400'
+                }`
+              }
+            >
+              {link.icon}
+              <span className="mt-1 leading-none">{link.name}</span>
+            </NavLink>
+          ))}
         </div>
-        <button
-          onClick={handleLogout}
-          className="mt-2 w-full flex items-center justify-center space-x-2 px-4 py-2 rounded-lg text-red-400 hover:bg-red-400/10 transition-colors"
-        >
-          <LogOut size={16} />
-          <span>Logout</span>
-        </button>
       </div>
-    </div>
+    </>
   );
 };
 
@@ -71,7 +92,7 @@ const DashboardLayout = () => {
   return (
     <div className="flex min-h-screen bg-dark-bg text-gray-100">
       <Sidebar />
-      <div className="flex-1 ml-64 overflow-x-hidden p-8">
+      <div className="flex-1 md:ml-64 overflow-x-hidden px-4 py-5 md:p-8 pb-24 md:pb-8">
         <Outlet />
       </div>
     </div>

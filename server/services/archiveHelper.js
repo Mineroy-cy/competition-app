@@ -52,14 +52,8 @@ const archiveCurrentWeekForUser = async (userId) => {
     };
   });
 
-  // Calculate Streak Logic (Very rough heuristic based on whether all active goals had task completion)
-  // For precise daily streak, we would check daily progress, but we simplify the streak increment
-  // to: If they completed all goals this week, increment streak by 1 week, otherwise 0.
-  const userObj = await User.findById(userId);
-  let newStreak = fullyCompletedGoals && totalGoals > 0 ? userObj.currentStreak + 1 : 0;
-  
+  // Keep weekly wins separate from daily streak logic.
   await User.findByIdAndUpdate(userId, {
-    currentStreak: newStreak,
     $inc: { totalCompletedWeeks: fullyCompletedGoals && totalGoals > 0 ? 1 : 0 }
   });
 

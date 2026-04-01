@@ -30,6 +30,10 @@ const userSchema = mongoose.Schema({
   currentStreak: {
     type: Number,
     default: 0
+  },
+  lastStreakDate: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

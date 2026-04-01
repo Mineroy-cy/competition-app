@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const Task = require('../models/Task');
 const Goal = require('../models/Goal');
+const { updateDailyStreakOnTaskCompletion } = require('../services/dailyStreakService');
 
 // @desc    Add a task
 // @route   POST /api/tasks
@@ -85,6 +86,8 @@ const completeTask = asyncHandler(async (req, res) => {
     },
     { new: true }
   );
+
+  await updateDailyStreakOnTaskCompletion(req.user.id, updatedTask.completionDate || new Date());
 
   res.status(200).json(updatedTask);
 });

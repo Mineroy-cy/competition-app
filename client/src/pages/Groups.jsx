@@ -1,12 +1,15 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useContext } from 'react';
 import axiosInstance from '../api/axiosInstance';
 import { Users, UserPlus, Trophy, Info, X, Activity, Copy } from 'lucide-react';
 import { format, startOfWeek, addDays, isSameDay, isAfter, isToday } from 'date-fns';
+import { AuthContext } from '../context/AuthContext';
 
 const Groups = () => {
+  const { user } = useContext(AuthContext);
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [freezeLoading, setFreezeLoading] = useState(false);
 
   // Forms
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -89,6 +92,33 @@ const Groups = () => {
     }
   };
 
+  const handleRequestFreeze = async () => {
+    if (!selectedGroup?.group?._id) return;
+    setFreezeLoading(true);
+    try {
+      await axiosInstance.post(`/groups/${selectedGroup.group._id}/streak-freeze/request`);
+      await handleSelectGroup(selectedGroup.group._id);
+      alert('Streak freeze requested for yesterday. Waiting for group votes.');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Could not request streak freeze');
+    } finally {
+      setFreezeLoading(false);
+    }
+  };
+
+  const handleVoteFreeze = async (freezeId, vote) => {
+    if (!selectedGroup?.group?._id) return;
+    setFreezeLoading(true);
+    try {
+      await axiosInstance.post(`/groups/${selectedGroup.group._id}/streak-freeze/${freezeId}/vote`, { vote });
+      await handleSelectGroup(selectedGroup.group._id);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Could not submit vote');
+    } finally {
+      setFreezeLoading(false);
+    }
+  };
+
   // Calculate Daily Activity Timeline data for Member (matches Dashboard logic)
   const timelineData = useMemo(() => {
     if (!selectedMemberStats || !selectedMemberStats.goals) return [];
@@ -125,9 +155,9 @@ const Groups = () => {
   if (loading) return <div>Loading groups...</div>;
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] space-x-6">
+    <div className="flex flex-col xl:flex-row gap-6 min-h-[calc(100vh-7rem)] md:min-h-[calc(100vh-4rem)]">
       {/* Sidebar / Group List */}
-      <div className="w-80 flex-shrink-0 flex flex-col space-y-4">
+      <div className="w-full xl:w-80 shrink-0 flex flex-col space-y-4">
         <h2 className="text-2xl font-bold text-white mb-2">Your Groups</h2>
         
         <div className="flex space-x-2">
@@ -160,7 +190,7 @@ const Groups = () => {
       </div>
 
       {/* Main Group View */}
-      <div className="flex-1 glass-panel rounded-2xl p-8 overflow-y-auto relative custom-scrollbar">
+      <div className="flex-1 glass-panel rounded-2xl p-4 md:p-8 overflow-y-auto relative custom-scrollbar min-h-[420px]">
         {!selectedGroup ? (
           <div className="h-full flex flex-col items-center justify-center text-center">
             <Trophy size={64} className="text-gray-600 mb-4" />
@@ -169,7 +199,7 @@ const Groups = () => {
           </div>
         ) : (
           <div>
-            <div className="border-b border-dark-border pb-6 mb-8 flex justify-between items-start">
+            <div className="border-b border-dark-border pb-6 mb-8 flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
               <div>
                 <h2 className="text-3xl font-bold text-white mb-2">{selectedGroup.group.name}</h2>
                 <p className="text-gray-400">{selectedGroup.group.description}</p>
@@ -190,12 +220,81 @@ const Groups = () => {
               </div>
             </div>
 
+            <div className="mb-8 p-5 rounded-xl border border-dark-border bg-dark-bg/40">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white">Streak Freeze</h3>
+                  <p className="text-xs text-gray-400">A freeze is approved only when all other members vote yes.</p>
+                </div>
+                <button
+                  onClick={handleRequestFreeze}
+                  disabled={freezeLoading}
+                  className="btn-secondary text-sm border-brand-secondary/40 text-brand-secondary"
+                >
+                  Request Freeze For Yesterday
+                </button>
+              </div>
+
+              {selectedGroup.streakFreezes && selectedGroup.streakFreezes.length > 0 ? (
+                <div className="space-y-3">
+                  {selectedGroup.streakFreezes
+                    .slice()
+                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                    .slice(0, 5)
+                    .map((freeze) => {
+                      const isTargetUser = freeze.targetUser === user?._id;
+                      const hasUserVoted = (freeze.votes || []).some((v) => v.user === user?._id);
+                      const canVote = freeze.status === 'pending' && !isTargetUser && !hasUserVoted;
+
+                      return (
+                        <div key={freeze._id} className="p-3 rounded-lg border border-dark-border bg-dark-bg/60">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-sm text-gray-300">
+                              <span className="font-semibold text-white">{freeze.targetUsername}</span>
+                              {' '}requested freeze for{' '}
+                              <span className="text-brand-secondary">{format(new Date(freeze.date), 'MMM d')}</span>
+                            </p>
+                            <span className={`text-xs px-2 py-1 rounded border ${freeze.status === 'approved' ? 'text-brand-accent border-brand-accent/40' : freeze.status === 'rejected' ? 'text-red-400 border-red-400/40' : 'text-yellow-300 border-yellow-300/40'}`}>
+                              {freeze.status.toUpperCase()}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Votes: {freeze.yesVotes} yes / {freeze.totalEligibleVoters} required
+                          </p>
+
+                          {canVote && (
+                            <div className="mt-3 flex gap-2">
+                              <button
+                                onClick={() => handleVoteFreeze(freeze._id, 'yes')}
+                                disabled={freezeLoading}
+                                className="btn-secondary text-xs border-brand-accent/40 text-brand-accent"
+                              >
+                                Vote Yes
+                              </button>
+                              <button
+                                onClick={() => handleVoteFreeze(freeze._id, 'no')}
+                                disabled={freezeLoading}
+                                className="btn-secondary text-xs border-red-400/40 text-red-400"
+                              >
+                                Vote No
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 italic">No streak freeze requests yet.</p>
+              )}
+            </div>
+
             <div className="flex items-center space-x-2 text-brand-primary mb-6">
               <Trophy size={20} />
               <h3 className="text-xl font-bold text-white">Leaderboard</h3>
             </div>
             
-            <div className="bg-dark-bg/50 rounded-xl border border-dark-border overflow-hidden">
+            <div className="bg-dark-bg/50 rounded-xl border border-dark-border overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="bg-dark-bg border-b border-dark-border text-xs uppercase text-gray-500">
                   <tr>
@@ -240,7 +339,7 @@ const Groups = () => {
       {/* Modals */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="glass-panel p-8 rounded-2xl w-full max-w-md">
+          <div className="glass-panel p-6 md:p-8 rounded-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-2xl font-bold text-white mb-6">Create Arena</h3>
             <form onSubmit={handleCreateGroup} className="space-y-4">
               <input type="text" placeholder="Group Name" required value={createForm.name} onChange={e => setCreateForm({...createForm, name: e.target.value})} className="input-field" />
@@ -256,7 +355,7 @@ const Groups = () => {
 
       {showJoinModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="glass-panel p-8 rounded-2xl w-full max-w-md">
+          <div className="glass-panel p-6 md:p-8 rounded-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-2xl font-bold text-white mb-6">Join Arena</h3>
             <form onSubmit={handleJoinGroup} className="space-y-4">
               <input type="text" placeholder="Invite Code (e.g. A1B2C3)" required value={joinCode} onChange={e => setJoinCode(e.target.value)} className="input-field text-center font-mono tracking-widest text-xl uppercase" />

@@ -41,7 +41,7 @@ const History = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold text-white mb-2">Architectural Archive</h2>
+        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Architectural Archive</h2>
         <p className="text-gray-400">Review your past performance and consistency.</p>
       </div>
 
@@ -55,7 +55,7 @@ const History = () => {
         ) : (
           history.map((record) => (
             <div key={record._id} className="glass-panel rounded-2xl overflow-hidden glass-panel-hover group">
-              <div className="bg-brand-primary/10 border-b border-dark-border p-6 flex justify-between items-center relative overflow-hidden">
+              <div className="bg-brand-primary/10 border-b border-dark-border p-4 md:p-6 flex flex-col md:flex-row md:justify-between md:items-center gap-3 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10 drop-shadow-[0_0_15px_rgba(139,92,246,1)]">
                    <h1 className="text-8xl font-black italic">W{record.weekNumber}</h1>
                 </div>
@@ -70,7 +70,7 @@ const History = () => {
                     </p>
                   </div>
                 </div>
-                <div className="relative z-10 hidden group-hover:block">
+                <div className="relative z-10 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                   <button 
                     onClick={() => handleDownload(record._id, record.weekNumber)} 
                     className="btn-secondary flex items-center space-x-2 border-brand-primary/30 text-brand-primary hover:bg-brand-primary hover:text-white"
@@ -80,7 +80,7 @@ const History = () => {
                 </div>
               </div>
               
-              <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 md:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center p-4 bg-dark-bg rounded-xl">
                   <p className="text-xs text-gray-400 mb-1 uppercase tracking-wider">Goal Completion</p>
                   <p className="text-2xl font-bold text-white">{record.totalGoals > 0 ? Math.round((record.completedGoals/record.totalGoals)*100) : 0}%</p>

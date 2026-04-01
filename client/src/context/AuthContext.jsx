@@ -8,17 +8,38 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      if (parsedUser?.token) {
-        setUser(parsedUser);
-      } else {
-        localStorage.removeItem('user');
+    const hydrateUser = async () => {
+      // Check if user is logged in
+      const storedUser = localStorage.getItem('user');
+      if (!storedUser) {
+        setLoading(false);
+        return;
       }
-    }
-    setLoading(false);
+
+      const parsedUser = JSON.parse(storedUser);
+      if (!parsedUser?.token) {
+        localStorage.removeItem('user');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await axiosInstance.get('/auth/me');
+        const hydratedUser = {
+          ...response.data,
+          token: parsedUser.token,
+        };
+        localStorage.setItem('user', JSON.stringify(hydratedUser));
+        setUser(hydratedUser);
+      } catch (error) {
+        localStorage.removeItem('user');
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    hydrateUser();
   }, []);
 
   const login = async (userData) => {

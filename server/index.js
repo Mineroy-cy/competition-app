@@ -116,19 +116,6 @@ app.use('/api/groups', express.json({
   },
 }));
 
-// Temporary auth diagnostics: verifies incoming content-type and parsed body shape.
-app.use('/api/auth', (req, res, next) => {
-  const bodyKeys = req.body && typeof req.body === 'object' ? Object.keys(req.body) : [];
-  console.log('[AUTH_DEBUG]', {
-    method: req.method,
-    path: req.path,
-    contentType: req.headers['content-type'] || null,
-    hasBody: bodyKeys.length > 0,
-    bodyKeys,
-  });
-  next();
-});
-
 // Apply rate limiting to all API requests
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes

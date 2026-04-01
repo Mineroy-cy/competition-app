@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 const Objectives = () => {
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expandedTaskIds, setExpandedTaskIds] = useState([]);
   
   // Modals state
   const [showGoalModal, setShowGoalModal] = useState(false);
@@ -119,20 +120,28 @@ const Objectives = () => {
     }
   };
 
+  const toggleTaskDescription = (taskId) => {
+    setExpandedTaskIds((prev) => (
+      prev.includes(taskId)
+        ? prev.filter((id) => id !== taskId)
+        : [...prev, taskId]
+    ));
+  };
+
   if (loading) return <div>Loading objectives...</div>;
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-white mb-2">Weekly Objectives</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Weekly Objectives</h2>
           <p className="text-gray-400">Plan your week and execute intensely.</p>
         </div>
-        <div className="flex space-x-4">
-          <button onClick={() => setShowGoalModal(true)} className="btn-primary flex items-center space-x-2">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full md:w-auto">
+          <button onClick={() => setShowGoalModal(true)} className="btn-primary flex items-center justify-center space-x-2 w-full sm:w-auto">
             <Plus size={18} /> <span>New Goal</span>
           </button>
-          <button onClick={handleManualCompleteWeek} className="btn-secondary flex items-center space-x-2 text-brand-secondary border-brand-secondary/50">
+          <button onClick={handleManualCompleteWeek} className="btn-secondary flex items-center justify-center space-x-2 text-brand-secondary border-brand-secondary/50 w-full sm:w-auto">
             <Briefcase size={18} /> <span>Complete Week</span>
           </button>
         </div>
@@ -140,8 +149,8 @@ const Objectives = () => {
 
       <div className="space-y-6">
         {goals.map(goal => (
-          <div key={goal._id} className="glass-panel p-6 rounded-2xl">
-            <div className="flex justify-between items-start mb-6 border-b border-dark-border pb-4">
+          <div key={goal._id} className="glass-panel p-4 md:p-6 rounded-2xl">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-6 border-b border-dark-border pb-4">
               <div>
                 <h3 className="text-2xl font-bold text-white">{goal.name}</h3>
                 <p className="text-gray-400 mt-1">{goal.description}</p>
@@ -155,11 +164,24 @@ const Objectives = () => {
             <div className="space-y-3">
               {goal.tasks && goal.tasks.length > 0 ? (
                 goal.tasks.map(task => (
-                  <div key={task._id} className={`p-4 rounded-xl flex items-center justify-between border ${task.status === 'completed' ? 'bg-brand-accent/5 border-brand-accent/20' : 'bg-white/5 border-transparent'}`}>
-                    <div>
-                      <h4 className={`font-medium ${task.status === 'completed' ? 'text-gray-300 line-through' : 'text-white'}`}>{task.name}</h4>
+                  <div key={task._id} className={`p-4 rounded-xl border ${task.status === 'completed' ? 'bg-brand-accent/5 border-brand-accent/20' : 'bg-white/5 border-transparent'}`}>
+                    <div className="w-full">
+                      <button
+                        type="button"
+                        onClick={() => toggleTaskDescription(task._id)}
+                        className="text-left w-full"
+                      >
+                        <h4 className={`font-medium ${task.status === 'completed' ? 'text-gray-300 line-through' : 'text-white'}`}>{task.name}</h4>
+                      </button>
+                      {expandedTaskIds.includes(task._id) && task.description && (
+                        <p className="text-sm text-gray-400 mt-2 whitespace-pre-wrap">{task.description}</p>
+                      )}
+                      {expandedTaskIds.includes(task._id) && !task.description && (
+                        <p className="text-xs text-gray-500 mt-2 italic">No description for this task.</p>
+                      )}
                       {task.status === 'completed' && <p className="text-xs text-brand-accent mt-1">Completed {format(new Date(task.completionDate), 'MMM d, p')}</p>}
                     </div>
+                    <div className="mt-3 flex justify-end">
                     {task.status === 'pending' ? (
                       <button 
                         onClick={() => setShowCompleteModal({ show: true, taskId: task._id })}
@@ -176,6 +198,7 @@ const Objectives = () => {
                         <span className="text-sm font-medium">Verified</span>
                       </button>
                     )}
+                    </div>
                   </div>
                 ))
               ) : (
@@ -204,8 +227,8 @@ const Objectives = () => {
 
       {/* Goal Modal */}
       {showGoalModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="glass-panel p-8 rounded-2xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="glass-panel p-6 md:p-8 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h3 className="text-2xl font-bold text-white mb-6">Create Goal</h3>
             <form onSubmit={handleAddGoal} className="space-y-4">
               <input type="text" placeholder="Goal Name" required value={goalForm.name} onChange={e => setGoalForm({...goalForm, name: e.target.value})} className="input-field" />
@@ -221,8 +244,8 @@ const Objectives = () => {
 
       {/* Task Modal */}
       {showTaskModal.show && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="glass-panel p-8 rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="glass-panel p-6 md:p-8 rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col">
             <h3 className="text-2xl font-bold text-white mb-6 shrink-0">Add Task</h3>
             
             <div className="overflow-y-auto pr-2 flex-1 custom-scrollbar">
@@ -258,8 +281,8 @@ const Objectives = () => {
 
       {/* Complete Task Modal */}
       {showCompleteModal.show && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="glass-panel p-8 rounded-2xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="glass-panel p-6 md:p-8 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h3 className="text-2xl font-bold text-white mb-2">Submit Proof</h3>
             <p className="text-sm text-gray-400 mb-6">Upload visual proof to verify task completion.</p>
             <form onSubmit={handleCompleteTask} className="space-y-4 max-h-[80vh] overflow-y-auto pr-2">
@@ -324,8 +347,8 @@ const Objectives = () => {
       )}
       {/* Proof Viewer Modal */}
       {showProofModal.show && showProofModal.task && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="glass-panel p-8 rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="glass-panel p-6 md:p-8 rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center mb-6 shrink-0">
                <h3 className="text-2xl font-bold text-white">Task Proof</h3>
                <div className="flex items-center space-x-2 text-brand-accent">

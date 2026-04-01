@@ -97,16 +97,16 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-end mb-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 mb-8">
         <div>
-          <h2 className="text-3xl font-bold text-white mb-2">Welcome back, {user?.username}</h2>
-          <p className="text-gray-400">Here's your productivity overview for this week.</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Welcome back, {user?.username}</h2>
+          <p className="text-sm md:text-base text-gray-400">Here's your productivity overview for this week.</p>
         </div>
-        <div className="glass-panel px-6 py-3 rounded-xl flex items-center space-x-3">
+        <div className="glass-panel px-4 md:px-6 py-3 rounded-xl flex items-center space-x-3 w-fit">
           <Flame size={24} className="text-orange-500" />
           <div>
             <p className="text-xs text-gray-400">Current Streak</p>
-            <p className="text-xl font-bold text-white">{user?.currentStreak || 0} Weeks</p>
+            <p className="text-xl font-bold text-white">{user?.currentStreak || 0} Days</p>
           </div>
         </div>
       </div>
@@ -146,13 +146,14 @@ const Dashboard = () => {
       </div>
 
       {/* 4.3 Weekly Activity Timeline & 4.4 Daily Work Volume */}
-      <div className="glass-panel rounded-2xl p-6">
+      <div className="glass-panel rounded-2xl p-4 md:p-6">
         <div className="flex items-center space-x-2 mb-6">
           <CalendarIcon className="text-brand-primary" size={20} />
           <h3 className="text-xl font-bold text-white">Weekly Activity Timeline</h3>
         </div>
         
-        <div className="flex justify-between items-end mb-8 relative">
+        <div className="overflow-x-auto pb-3">
+        <div className="flex justify-between items-end mb-8 relative min-w-175">
           {/* Connecting line */}
           <div className="absolute top-1/2 left-0 right-0 h-1 bg-dark-border -translate-y-6 z-0 rounded-full"></div>
           
@@ -170,7 +171,7 @@ const Dashboard = () => {
                 {/* 4.4 Volume Graph Hint */}
                 <div className="h-20 w-8 flex items-end justify-center mb-2 rounded-t-lg overflow-hidden bg-dark-bg/50 border border-dark-border">
                   <div 
-                    className="w-full bg-gradient-to-t from-brand-primary to-brand-secondary transition-all duration-500" 
+                    className="w-full bg-linear-to-t from-brand-primary to-brand-secondary transition-all duration-500"
                     style={{ height: `${day.dailyVolumePercent}%` }}
                     title={`Volume: ${day.dailyVolumePercent}%`}
                   ></div>
@@ -185,6 +186,7 @@ const Dashboard = () => {
               </div>
             );
           })}
+        </div>
         </div>
         
         {/* Interaction Flow: Click Day -> Click Goal -> Show Tasks */}
@@ -287,7 +289,7 @@ const Dashboard = () => {
              </div>
              <div className="w-full bg-dark-border rounded-full h-2">
                <div 
-                 className={`h-2 rounded-full ${goal.progress === 100 ? 'bg-brand-accent' : 'bg-gradient-to-r from-brand-primary to-brand-secondary'}`}
+                 className={`h-2 rounded-full ${goal.progress === 100 ? 'bg-brand-accent' : 'bg-linear-to-r from-brand-primary to-brand-secondary'}`}
                  style={{ width: `${goal.progress}%` }}
                ></div>
              </div>

@@ -1,5 +1,44 @@
 const mongoose = require('mongoose');
 
+const streakFreezeVoteSchema = mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  vote: {
+    type: String,
+    enum: ['yes', 'no'],
+    required: true,
+  },
+}, { _id: false });
+
+const streakFreezeSchema = mongoose.Schema({
+  targetUser: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  date: {
+    type: Date,
+    required: true,
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending',
+  },
+  requestedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  votes: {
+    type: [streakFreezeVoteSchema],
+    default: [],
+  },
+}, { _id: true });
+
 const groupSchema = mongoose.Schema({
   name: {
     type: String,
@@ -28,6 +67,10 @@ const groupSchema = mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+  streakFreezes: {
+    type: [streakFreezeSchema],
+    default: []
   }
 }, {
   timestamps: true

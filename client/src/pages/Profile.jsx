@@ -18,7 +18,7 @@ const Profile = () => {
       <div className="glass-panel rounded-2xl p-8 flex items-center space-x-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary blur-[100px] opacity-20 transform translate-x-1/2 -translate-y-1/2"></div>
         
-        <div className="relative z-10 w-32 h-32 rounded-full bg-gradient-to-tr from-brand-primary to-brand-secondary p-1">
+        <div className="relative z-10 w-32 h-32 rounded-full bg-linear-to-tr from-brand-primary to-brand-secondary p-1">
           <div className="w-full h-full rounded-full bg-dark-bg flex items-center justify-center text-5xl font-bold text-white uppercase">
             {user.username.charAt(0)}
           </div>
@@ -43,7 +43,7 @@ const Profile = () => {
           <Flame size={48} className="text-orange-500 mb-4" />
           <h3 className="text-gray-400 uppercase tracking-widest text-sm mb-1">Current Streak</h3>
           <p className="text-5xl font-black text-white">{user.currentStreak || 0}</p>
-          <p className="text-xs text-gray-500 mt-4">Weeks in a row you have stayed consistent.</p>
+          <p className="text-xs text-gray-500 mt-4">Days in a row you completed at least one task for every active goal.</p>
         </div>
       </div>
     </div>

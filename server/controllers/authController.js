@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
+const { normalizeDailyStreak } = require('../services/dailyStreakService');
 
 // @desc    Register new user
 // @route   POST /api/auth/register
@@ -84,7 +85,12 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 
   // Check for user email
-  const user = await User.findOne({ email });
+  let user = await User.findOne({ email });
+
+  if (user) {
+    await normalizeDailyStreak(user._id);
+    user = await User.findById(user._id);
+  }
 
   if (user && (await bcrypt.compare(password, user.password))) {
     res.json({
@@ -106,7 +112,9 @@ const loginUser = asyncHandler(async (req, res) => {
 // @route   GET /api/auth/me
 // @access  Private
 const getMe = asyncHandler(async (req, res) => {
-  res.status(200).json(req.user);
+  await normalizeDailyStreak(req.user.id);
+  const freshUser = await User.findById(req.user.id).select('-password');
+  res.status(200).json(freshUser);
 });
 
 // Generate JWT
