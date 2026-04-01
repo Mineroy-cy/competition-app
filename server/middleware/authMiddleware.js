@@ -3,6 +3,13 @@ const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
 
 const protect = asyncHandler(async (req, res, next) => {
+  // Validate JWT_SECRET is set
+  if (!process.env.JWT_SECRET) {
+    console.error('CRITICAL: JWT_SECRET environment variable is not set');
+    res.status(500);
+    throw new Error('Server configuration error: JWT_SECRET not set');
+  }
+
   let token;
 
   if (
@@ -26,7 +33,11 @@ const protect = asyncHandler(async (req, res, next) => {
 
       next();
     } catch (error) {
-      console.error(error);
+      console.error('Auth verification error:', error.message);
+      if (error.name === 'JsonWebTokenError') {
+        res.status(401);
+        throw new Error('Invalid token signature - possibly using wrong JWT_SECRET');
+      }
       res.status(401);
       throw new Error('Not authorized');
     }

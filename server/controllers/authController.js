@@ -67,6 +67,11 @@ const registerUser = asyncHandler(async (req, res) => {
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
+  if (!email || !password) {
+    res.status(400);
+    throw new Error('Email and password are required');
+  }
+
   // Check for user email
   const user = await User.findOne({ email });
 
@@ -95,6 +100,9 @@ const getMe = asyncHandler(async (req, res) => {
 
 // Generate JWT
 const generateToken = (id) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is not set');
+  }
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: '30d',
   });

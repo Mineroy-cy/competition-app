@@ -7,6 +7,17 @@ const connectDB = require('./config/db');
 
 const { startCronJobs } = require('./services/cronScheduler');
 
+// Validate required environment variables
+const requiredEnvVars = ['JWT_SECRET', 'MONGO_URI'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+if (missingEnvVars.length > 0) {
+  console.error('⚠️  CRITICAL: Missing required environment variables:', missingEnvVars);
+  console.error('Please set these in your .env file or Render dashboard');
+  process.exit(1);
+}
+
+console.log('✅ Environment variables validated');
+
 // Connect to database
 connectDB();
 
