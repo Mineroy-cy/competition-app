@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import axiosInstance from '../api/axiosInstance';
-import { Download, Calendar, Activity } from 'lucide-react';
+import { Download, Calendar, Activity, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 const History = () => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedWeek, setExpandedWeek] = useState(null);
+  const [downloadingWeekId, setDownloadingWeekId] = useState(null);
+  const [deletingWeekId, setDeletingWeekId] = useState(null);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -23,6 +25,8 @@ const History = () => {
   }, []);
 
   const handleDownload = async (id, weekNumber) => {
+    if (downloadingWeekId) return;
+    setDownloadingWeekId(id);
     try {
       const res = await axiosInstance.get(`/weeks/${id}/download`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([res.data]));
@@ -33,6 +37,25 @@ const History = () => {
       link.click();
     } catch (err) {
       console.error('Download failed', err);
+    } finally {
+      setDownloadingWeekId(null);
+    }
+  };
+
+  const handleDeleteWeek = async (id) => {
+    if (deletingWeekId) return;
+    if (!window.confirm('Delete this history week?')) return;
+    setDeletingWeekId(id);
+    try {
+      await axiosInstance.delete(`/weeks/${id}`);
+      setHistory((prev) => prev.filter((record) => record._id !== id));
+      if (expandedWeek === id) {
+        setExpandedWeek(null);
+      }
+    } catch (err) {
+      console.error('Delete failed', err);
+    } finally {
+      setDeletingWeekId(null);
     }
   };
 
@@ -70,12 +93,23 @@ const History = () => {
                     </p>
                   </div>
                 </div>
-                <div className="relative z-10 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                <div className="relative z-10 flex flex-wrap gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                   <button 
                     onClick={() => handleDownload(record._id, record.weekNumber)} 
-                    className="btn-secondary flex items-center space-x-2 border-brand-primary/30 text-brand-primary hover:bg-brand-primary hover:text-white"
+                    disabled={downloadingWeekId === record._id || deletingWeekId === record._id}
+                    className="btn-secondary flex items-center space-x-2 border-brand-primary/30 text-brand-primary hover:bg-brand-primary hover:text-white disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <Download size={16} /> <span>CSV Report</span>
+                    {downloadingWeekId === record._id ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                    <span>{downloadingWeekId === record._id ? 'Downloading...' : 'CSV Report'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteWeek(record._id)}
+                    disabled={deletingWeekId === record._id || downloadingWeekId === record._id}
+                    className="btn-secondary flex items-center space-x-2 border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {deletingWeekId === record._id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                    <span>{deletingWeekId === record._id ? 'Deleting...' : 'Delete Week'}</span>
                   </button>
                 </div>
               </div>

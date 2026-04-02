@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, User as UserIcon } from 'lucide-react';
+import { Loader2, Mail, Lock, User as UserIcon } from 'lucide-react';
 
 const Login = () => {
   const location = useLocation();
@@ -13,6 +13,7 @@ const Login = () => {
     password: ''
   });
   const [errorMsg, setErrorMsg] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   
   const { login, register } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -27,16 +28,20 @@ const Login = () => {
   const onSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
+    if (submitting) return;
+    setSubmitting(true);
     try {
       if (isLogin) {
         await login({ email: formData.email, password: formData.password });
-        navigate('/dashboard');
+        navigate('/objectives');
       } else {
         await register(formData);
         navigate('/objectives');
       }
     } catch (err) {
       setErrorMsg(err.response?.data?.message || 'Authentication failed');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -109,8 +114,15 @@ const Login = () => {
               />
             </div>
 
-            <button type="submit" className="btn-primary w-full py-3 mt-4">
-              {isLogin ? 'Sign In' : 'Create Account'}
+            <button type="submit" className="btn-primary w-full py-3 mt-4 disabled:opacity-60 disabled:cursor-not-allowed" disabled={submitting}>
+              {submitting ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>{isLogin ? 'Signing In...' : 'Creating Account...'}</span>
+                </span>
+              ) : (
+                <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
+              )}
             </button>
           </form>
 
@@ -118,7 +130,8 @@ const Login = () => {
             {isLogin ? "Don't have an account? " : "Already have an account? "}
             <button
               onClick={() => { setIsLogin(!isLogin); setErrorMsg(''); }}
-              className="text-brand-primary font-medium hover:underline"
+              className="text-brand-primary font-medium hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={submitting}
             >
               {isLogin ? 'Sign up' : 'Sign in'}
             </button>

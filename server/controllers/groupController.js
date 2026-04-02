@@ -5,6 +5,8 @@ const Goal = require('../models/Goal');
 const Task = require('../models/Task');
 const { normalizeDailyStreak } = require('../services/dailyStreakService');
 
+const FREEZE_EXPIRY_MS = 24 * 60 * 60 * 1000;
+
 // Generate short invite code
 const generateInviteCode = () => {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -20,6 +22,27 @@ const getEndOfDay = (date = new Date()) => {
   const d = new Date(date);
   d.setHours(23, 59, 59, 999);
   return d;
+};
+
+const getFreezeRequestedAt = (freeze) => {
+  if (freeze.requestedAt) return new Date(freeze.requestedAt);
+  if (freeze.createdAt) return new Date(freeze.createdAt);
+  return new Date(freeze.date);
+};
+
+const cleanupExpiredFreezes = async (group) => {
+  if (!group || !Array.isArray(group.streakFreezes)) return;
+
+  const now = Date.now();
+  const activeFreezes = group.streakFreezes.filter((freeze) => {
+    const requestedAt = getFreezeRequestedAt(freeze).getTime();
+    return now - requestedAt < FREEZE_EXPIRY_MS;
+  });
+
+  if (activeFreezes.length !== group.streakFreezes.length) {
+    group.streakFreezes = activeFreezes;
+    await group.save();
+  }
 };
 
 // ... [existing functions] ...
@@ -46,6 +69,7 @@ const createGroup = asyncHandler(async (req, res) => {
     inviteCode: inviteCode,
     creator: req.user.id,
     members: [req.user.id],
+    inviteCodeAccessUsers: [],
   });
   const populatedGroup = await Group.findById(group._id).populate('members', 'username profilePhoto currentStreak totalCompletedWeeks');
   res.status(200).json(populatedGroup);
@@ -68,8 +92,13 @@ const getGroupDetails = asyncHandler(async (req, res) => {
   const group = await Group.findById(req.params.id)
     .populate('members', 'username profilePhoto currentStreak totalCompletedWeeks');
   if (!group) { res.status(404); throw new Error('Group not found'); }
+
+  await cleanupExpiredFreezes(group);
+
   const isMember = group.members.some(member => member._id.toString() === req.user.id);
   if (!isMember) { res.status(401); throw new Error('Not authorized to view this group'); }
+  const isCreator = group.creator.toString() === req.user.id;
+  const canViewInviteCode = isCreator || (group.inviteCodeAccessUsers || []).some((memberId) => memberId.toString() === req.user.id);
 
   let sortedMembers = [...group.members].sort((a, b) => {
     if (b.totalCompletedWeeks !== a.totalCompletedWeeks) {
@@ -80,6 +109,9 @@ const getGroupDetails = asyncHandler(async (req, res) => {
 
   const memberMap = new Map(group.members.map((m) => [m._id.toString(), m.username]));
   const streakFreezes = (group.streakFreezes || []).map((freeze) => {
+    const requestedAt = getFreezeRequestedAt(freeze);
+    const expiresAt = new Date(requestedAt.getTime() + FREEZE_EXPIRY_MS);
+    const timeLeftMs = Math.max(0, expiresAt.getTime() - Date.now());
     const totalEligibleVoters = group.members.filter((m) => m._id.toString() !== freeze.targetUser.toString()).length;
     const yesVotes = (freeze.votes || []).filter((v) => v.vote === 'yes').length;
     const noVotes = (freeze.votes || []).filter((v) => v.vote === 'no').length;
@@ -91,6 +123,9 @@ const getGroupDetails = asyncHandler(async (req, res) => {
       requestedBy: freeze.requestedBy,
       requestedByUsername: memberMap.get(freeze.requestedBy.toString()) || 'Unknown',
       date: freeze.date,
+      requestedAt,
+      expiresAt,
+      timeLeftMs,
       status: freeze.status,
       yesVotes,
       noVotes,
@@ -108,12 +143,72 @@ const getGroupDetails = asyncHandler(async (req, res) => {
       _id: group._id,
       name: group.name,
       description: group.description,
-      inviteCode: group.inviteCode,
-      creator: group.creator
+      inviteCode: canViewInviteCode ? group.inviteCode : null,
+      creator: group.creator,
+      inviteCodeAccessUsers: group.inviteCodeAccessUsers || [],
     },
     leaderboard: sortedMembers,
-    streakFreezes
+    streakFreezes,
+    canViewInviteCode,
+    canManageGroup: isCreator,
   });
+});
+
+const updateInviteCodeAccess = asyncHandler(async (req, res) => {
+  const { id: groupId } = req.params;
+  const body = req.body || {};
+  const requestedUserIds = Array.isArray(body.userIds) ? body.userIds.map(String) : [];
+
+  const group = await Group.findById(groupId);
+  if (!group) {
+    res.status(404);
+    throw new Error('Group not found');
+  }
+
+  if (group.creator.toString() !== req.user.id) {
+    res.status(401);
+    throw new Error('Only the group creator can change invite code access');
+  }
+
+  const memberIds = new Set(group.members.map((memberId) => memberId.toString()));
+  const allowedIds = requestedUserIds.filter((memberId) => memberId !== req.user.id && memberIds.has(memberId));
+
+  group.inviteCodeAccessUsers = [...new Set(allowedIds)];
+  await group.save();
+
+  res.status(200).json({ inviteCodeAccessUsers: group.inviteCodeAccessUsers });
+});
+
+const removeGroupMember = asyncHandler(async (req, res) => {
+  const { id: groupId, memberId } = req.params;
+
+  const group = await Group.findById(groupId);
+  if (!group) {
+    res.status(404);
+    throw new Error('Group not found');
+  }
+
+  if (group.creator.toString() !== req.user.id) {
+    res.status(401);
+    throw new Error('Only the group creator can remove members');
+  }
+
+  if (group.creator.toString() === memberId) {
+    res.status(400);
+    throw new Error('The creator cannot be removed from the group');
+  }
+
+  const isMember = group.members.some((member) => member.toString() === memberId);
+  if (!isMember) {
+    res.status(404);
+    throw new Error('Member not found in this group');
+  }
+
+  group.members = group.members.filter((member) => member.toString() !== memberId);
+  group.inviteCodeAccessUsers = (group.inviteCodeAccessUsers || []).filter((allowedId) => allowedId.toString() !== memberId);
+  await group.save();
+
+  res.status(200).json({ message: 'Member removed from group' });
 });
 
 const requestStreakFreeze = asyncHandler(async (req, res) => {
@@ -126,6 +221,8 @@ const requestStreakFreeze = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Group not found');
   }
+
+  await cleanupExpiredFreezes(group);
 
   const isRequesterMember = group.members.some((m) => m.toString() === req.user.id);
   const isTargetMember = group.members.some((m) => m.toString() === targetUserId);
@@ -160,6 +257,7 @@ const requestStreakFreeze = asyncHandler(async (req, res) => {
     targetUser: targetUserId,
     date: yesterday,
     requestedBy: req.user.id,
+    requestedAt: new Date(),
     votes: [],
     status: 'pending',
   });
@@ -183,6 +281,18 @@ const voteStreakFreeze = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Group not found');
   }
+
+  const freezeBeforeCleanup = (group.streakFreezes || []).id(freezeId);
+  if (freezeBeforeCleanup) {
+    const requestedAt = getFreezeRequestedAt(freezeBeforeCleanup).getTime();
+    if (Date.now() - requestedAt >= FREEZE_EXPIRY_MS) {
+      await cleanupExpiredFreezes(group);
+      res.status(410);
+      throw new Error('Freeze request expired and has been removed');
+    }
+  }
+
+  await cleanupExpiredFreezes(group);
 
   const isMember = group.members.some((m) => m.toString() === req.user.id);
   if (!isMember) {
@@ -279,6 +389,8 @@ module.exports = {
   joinGroup,
   getGroupDetails,
   getGroupMemberStats,
+  updateInviteCodeAccess,
+  removeGroupMember,
   requestStreakFreeze,
   voteStreakFreeze
 };

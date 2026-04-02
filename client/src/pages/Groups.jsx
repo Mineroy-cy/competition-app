@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import axiosInstance from '../api/axiosInstance';
-import { Users, UserPlus, Trophy, Info, X, Activity, Copy } from 'lucide-react';
+import { Users, UserPlus, Trophy, Info, X, Activity, Copy, Loader2, Trash2, Lock, Crown } from 'lucide-react';
 import { format, startOfWeek, addDays, isSameDay, isAfter, isToday } from 'date-fns';
 import { AuthContext } from '../context/AuthContext';
 
@@ -10,6 +10,7 @@ const Groups = () => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [loading, setLoading] = useState(true);
   const [freezeLoading, setFreezeLoading] = useState(false);
+  const [currentTimeMs, setCurrentTimeMs] = useState(Date.now());
 
   // Forms
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -20,6 +21,10 @@ const Groups = () => {
   // Member Detail View Modal
   const [selectedMemberStats, setSelectedMemberStats] = useState(null);
   const [memberLoading, setMemberLoading] = useState(false);
+  const [memberActionLoadingId, setMemberActionLoadingId] = useState(null);
+  const [inviteToggleLoadingId, setInviteToggleLoadingId] = useState(null);
+  const [inviteAccessIds, setInviteAccessIds] = useState([]);
+  const [inviteAccessSaving, setInviteAccessSaving] = useState(false);
 
   const fetchGroups = async () => {
     try {
@@ -50,10 +55,19 @@ const Groups = () => {
     return () => clearInterval(intervalId);
   }, [selectedGroup?.group?._id]);
 
+  useEffect(() => {
+    const timerId = setInterval(() => {
+      setCurrentTimeMs(Date.now());
+    }, 1000);
+
+    return () => clearInterval(timerId);
+  }, []);
+
   const handleSelectGroup = async (id) => {
     try {
       const res = await axiosInstance.get(`/groups/${id}`);
       setSelectedGroup(res.data);
+      setInviteAccessIds((res.data.group?.inviteCodeAccessUsers || []).map((memberId) => memberId.toString()));
     } catch (err) {
       console.error(err);
     }
@@ -126,10 +140,96 @@ const Groups = () => {
       await handleSelectGroup(selectedGroup.group._id);
       await refreshUser?.();
     } catch (err) {
-      alert(err.response?.data?.message || 'Could not submit vote');
+      if (err.response?.status === 410) {
+        alert('This freeze request expired and was removed.');
+        await handleSelectGroup(selectedGroup.group._id);
+      } else {
+        alert(err.response?.data?.message || 'Could not submit vote');
+      }
     } finally {
       setFreezeLoading(false);
     }
+  };
+
+  const handleUpdateInviteAccess = async () => {
+    if (!selectedGroup?.group?._id || !selectedGroup?.canManageGroup) return;
+    setInviteAccessSaving(true);
+    try {
+      const res = await axiosInstance.put(`/groups/${selectedGroup.group._id}/invite-code-access`, {
+        userIds: inviteAccessIds,
+      });
+      setSelectedGroup((prev) => prev ? {
+        ...prev,
+        group: {
+          ...prev.group,
+          inviteCodeAccessUsers: res.data.inviteCodeAccessUsers,
+        },
+      } : prev);
+      alert('Invite code access updated.');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Could not update invite code access');
+    } finally {
+      setInviteAccessSaving(false);
+    }
+  };
+
+  const handleRemoveMember = async (memberId, memberName) => {
+    if (!selectedGroup?.group?._id || !selectedGroup?.canManageGroup) return;
+    if (!window.confirm(`Remove ${memberName} from this group?`)) return;
+    setMemberActionLoadingId(memberId);
+    try {
+      await axiosInstance.delete(`/groups/${selectedGroup.group._id}/members/${memberId}`);
+      await handleSelectGroup(selectedGroup.group._id);
+      await fetchGroups();
+      if (selectedMemberStats?.user?._id === memberId) {
+        setSelectedMemberStats(null);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Could not remove member');
+    } finally {
+      setMemberActionLoadingId(null);
+    }
+  };
+
+  const handleToggleMemberInviteAccess = async (memberId, memberName) => {
+    if (!selectedGroup?.group?._id || !selectedGroup?.canManageGroup) return;
+    setInviteToggleLoadingId(memberId);
+    try {
+      const alreadyAllowed = inviteAccessIds.includes(memberId);
+      const nextIds = alreadyAllowed
+        ? inviteAccessIds.filter((id) => id !== memberId)
+        : [...new Set([...inviteAccessIds, memberId])];
+
+      const res = await axiosInstance.put(`/groups/${selectedGroup.group._id}/invite-code-access`, {
+        userIds: nextIds,
+      });
+
+      const updatedIds = (res.data.inviteCodeAccessUsers || []).map((id) => id.toString());
+      setInviteAccessIds(updatedIds);
+      setSelectedGroup((prev) => prev ? {
+        ...prev,
+        group: {
+          ...prev.group,
+          inviteCodeAccessUsers: res.data.inviteCodeAccessUsers,
+        },
+      } : prev);
+      alert(`${memberName} ${alreadyAllowed ? 'can no longer view' : 'can now view'} the invite code.`);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Could not update invite access');
+    } finally {
+      setInviteToggleLoadingId(null);
+    }
+  };
+
+  const formatTimeToExpiry = (expiresAt) => {
+    if (!expiresAt) return 'Expired';
+    const timeLeftMs = new Date(expiresAt).getTime() - currentTimeMs;
+    if (timeLeftMs <= 0) return 'Expired';
+    const totalSeconds = Math.floor(timeLeftMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours}h ${minutes}m ${seconds}s`;
   };
 
   // Calculate Daily Activity Timeline data for Member (matches Dashboard logic)
@@ -217,21 +317,87 @@ const Groups = () => {
                 <h2 className="text-3xl font-bold text-white mb-2">{selectedGroup.group.name}</h2>
                 <p className="text-gray-400">{selectedGroup.group.description}</p>
               </div>
-              <div className="bg-dark-bg px-4 py-2 rounded-lg border border-dark-border flex items-center space-x-3">
-                <span className="text-xs text-gray-500 uppercase tracking-wider">Invite Code</span>
-                <span className="text-xl font-mono text-brand-secondary font-bold tracking-widest">{selectedGroup.group.inviteCode}</span>
-                <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(selectedGroup.group.inviteCode);
-                    alert('Invite code copied to clipboard!');
-                  }} 
-                  className="ml-2 text-gray-500 hover:text-white transition-colors p-1"
-                  title="Copy Invite Code"
-                >
-                  <Copy size={16} />
-                </button>
+              <div className="bg-dark-bg px-4 py-3 rounded-lg border border-dark-border">
+                {selectedGroup.canViewInviteCode && selectedGroup.group.inviteCode ? (
+                  <div className="flex items-center space-x-3">
+                    <span className="text-xs text-gray-500 uppercase tracking-wider">Invite Code</span>
+                    <span className="text-xl font-mono text-brand-secondary font-bold tracking-widest">{selectedGroup.group.inviteCode}</span>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedGroup.group.inviteCode);
+                        alert('Invite code copied to clipboard!');
+                      }} 
+                      className="ml-2 text-gray-500 hover:text-white transition-colors p-1"
+                      title="Copy Invite Code"
+                    >
+                      <Copy size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2 text-gray-400 text-sm">
+                    <Lock size={16} />
+                    <span>The creator controls who can view the invite code.</span>
+                  </div>
+                )}
               </div>
             </div>
+
+            {selectedGroup.canManageGroup && (
+              <div className="mb-8 p-5 rounded-xl border border-dark-border bg-dark-bg/40">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-white">Invite Code Access</h3>
+                    <p className="text-xs text-gray-400">Choose which members can see and share the join code.</p>
+                  </div>
+                  <button
+                    onClick={handleUpdateInviteAccess}
+                    disabled={inviteAccessSaving}
+                    className="btn-secondary text-sm border-brand-primary/40 text-brand-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {inviteAccessSaving ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Saving...</span>
+                      </span>
+                    ) : (
+                      'Save Access'
+                    )}
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {selectedGroup.leaderboard
+                    .filter((member) => member._id !== user?._id)
+                    .map((member) => (
+                      <label key={member._id} className="flex items-center gap-3 p-3 rounded-xl border border-dark-border bg-dark-bg/60 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={inviteAccessIds.includes(member._id)}
+                          onChange={(e) => {
+                            setInviteAccessIds((prev) => (
+                              e.target.checked
+                                ? [...new Set([...prev, member._id])]
+                                : prev.filter((id) => id !== member._id)
+                            ));
+                          }}
+                          className="h-4 w-4 rounded border-dark-border bg-dark-bg text-brand-primary focus:ring-brand-primary"
+                        />
+                        <span className="text-sm text-gray-200 inline-flex items-center gap-2">
+                          <span>{member.username}</span>
+                          {member._id === selectedGroup.group.creator && (
+                            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-yellow-300 border border-yellow-300/30 px-2 py-0.5 rounded-full">
+                              <Crown size={11} />
+                              <span>Admin</span>
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    ))}
+                  {selectedGroup.leaderboard.filter((member) => member._id !== user?._id).length === 0 && (
+                    <p className="text-sm text-gray-500 italic">No other members yet.</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="mb-8 p-5 rounded-xl border border-dark-border bg-dark-bg/40">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -252,7 +418,7 @@ const Groups = () => {
                 <div className="space-y-3">
                   {selectedGroup.streakFreezes
                     .slice()
-                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                    .sort((a, b) => new Date(b.requestedAt || b.date) - new Date(a.requestedAt || a.date))
                     .slice(0, 5)
                     .map((freeze) => {
                       const isTargetUser = freeze.targetUser === user?._id;
@@ -273,6 +439,9 @@ const Groups = () => {
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
                             Votes: {freeze.yesVotes} yes / {freeze.totalEligibleVoters} required
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Expires in: <span className="text-brand-secondary font-medium">{formatTimeToExpiry(freeze.expiresAt)}</span>
                           </p>
 
                           {canVote && (
@@ -315,6 +484,7 @@ const Groups = () => {
                     <th className="px-6 py-4">Member</th>
                     <th className="px-6 py-4 text-center text-brand-accent">Weeks Won</th>
                     <th className="px-6 py-4 text-center text-orange-400">Streak</th>
+                    {selectedGroup.canManageGroup && <th className="px-6 py-4 text-center">Actions</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-dark-border">
@@ -333,13 +503,61 @@ const Groups = () => {
                             {member.username.charAt(0)}
                           </div>
                           <div>
-                            <span className="font-semibold text-white block">{member.username}</span>
+                            <span className="font-semibold text-white inline-flex items-center gap-2">
+                              <span>{member.username}</span>
+                              {member._id === selectedGroup.group.creator && (
+                                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-yellow-300 border border-yellow-300/30 px-2 py-0.5 rounded-full">
+                                  <Crown size={11} />
+                                  <span>Admin</span>
+                                </span>
+                              )}
+                            </span>
                             <span className="text-[10px] text-brand-secondary uppercase tracking-wider">View Details</span>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center font-bold text-gray-300">{member.totalCompletedWeeks}</td>
                       <td className="px-6 py-4 text-center font-bold text-gray-300">{member.currentStreak} 🔥</td>
+                      {selectedGroup.canManageGroup && (
+                        <td className="px-6 py-4 text-center">
+                          {member._id !== user?._id ? (
+                            <div className="inline-flex flex-wrap items-center justify-center gap-3">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleMemberInviteAccess(member._id, member.username);
+                                }}
+                                disabled={inviteToggleLoadingId === member._id || memberActionLoadingId === member._id}
+                                className="inline-flex items-center gap-2 text-xs text-brand-primary hover:text-white disabled:opacity-60 disabled:cursor-not-allowed"
+                              >
+                                {inviteToggleLoadingId === member._id ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
+                                <span>
+                                  {inviteToggleLoadingId === member._id
+                                    ? 'Updating...'
+                                    : inviteAccessIds.includes(member._id)
+                                      ? 'Revoke Code Access'
+                                      : 'Allow Code Access'}
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveMember(member._id, member.username);
+                                }}
+                                disabled={memberActionLoadingId === member._id || inviteToggleLoadingId === member._id}
+                                className="inline-flex items-center gap-2 text-xs text-red-400 hover:text-red-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                              >
+                                {memberActionLoadingId === member._id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                                <span>{memberActionLoadingId === member._id ? 'Removing...' : 'Remove'}</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-500">Creator</span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

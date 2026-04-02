@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axiosInstance from '../api/axiosInstance';
-import { Plus, Check, Image as ImageIcon, Briefcase, CheckCircle } from 'lucide-react';
+import { Plus, Check, Image as ImageIcon, Briefcase, CheckCircle, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { AuthContext } from '../context/AuthContext';
+
+const calculateGoalProgress = (tasks = []) => {
+  if (!tasks.length) return 0;
+  const completedCount = tasks.filter((task) => task.status === 'completed').length;
+  return Math.round((completedCount / tasks.length) * 100);
+};
 
 const Objectives = () => {
   const [goals, setGoals] = useState([]);
@@ -15,6 +21,12 @@ const Objectives = () => {
   const [showCompleteModal, setShowCompleteModal] = useState({ show: false, taskId: null });
   const [showProofModal, setShowProofModal] = useState({ show: false, task: null });
   const { refreshUser } = useContext(AuthContext);
+  const [creatingGoal, setCreatingGoal] = useState(false);
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [completingTask, setCompletingTask] = useState(false);
+  const [completingWeek, setCompletingWeek] = useState(false);
+  const [deletingGoalId, setDeletingGoalId] = useState(null);
+  const [deletingTaskId, setDeletingTaskId] = useState(null);
   
   // Form states
   const [goalForm, setGoalForm] = useState({ name: '', description: '' });
@@ -52,13 +64,18 @@ const Objectives = () => {
 
   const handleAddGoal = async (e) => {
     e.preventDefault();
+    if (creatingGoal) return;
+    setCreatingGoal(true);
     try {
-      await axiosInstance.post('/goals', goalForm);
+      const res = await axiosInstance.post('/goals', goalForm);
+      const createdGoal = res.data;
+      setGoals((prev) => [...prev, createdGoal]);
       setGoalForm({ name: '', description: '' });
       setShowGoalModal(false);
-      fetchGoals();
     } catch (err) {
       console.error(err);
+    } finally {
+      setCreatingGoal(false);
     }
   };
 
@@ -79,20 +96,35 @@ const Objectives = () => {
 
   const handleAddTask = async (e) => {
     e.preventDefault();
+    if (creatingTask) return;
+    setCreatingTask(true);
     try {
-      await axiosInstance.post('/tasks', { ...taskForm, goalId: showTaskModal.goalId });
+      const res = await axiosInstance.post('/tasks', { ...taskForm, goalId: showTaskModal.goalId });
+      const createdTask = res.data;
+      setGoals((prev) => prev.map((goal) => {
+        if (goal._id !== showTaskModal.goalId) return goal;
+        const updatedTasks = [...(goal.tasks || []), createdTask];
+        return {
+          ...goal,
+          tasks: updatedTasks,
+          progress: calculateGoalProgress(updatedTasks),
+        };
+      }));
       await refreshUser?.();
       setTaskForm({ name: '', description: '' });
       setShowTaskModal({ show: false, goalId: null });
       setSuggestion('');
-      fetchGoals();
     } catch (err) {
       console.error(err);
+    } finally {
+      setCreatingTask(false);
     }
   };
 
   const handleCompleteTask = async (e) => {
     e.preventDefault();
+    if (completingTask) return;
+    setCompletingTask(true);
     const formData = new FormData();
     if (proofImage) formData.append('proof', proofImage);
     else formData.append('mockImages', 'https://placehold.co/300x300?text=Mock+Upload'); // Failsafe mockup
@@ -103,30 +135,84 @@ const Objectives = () => {
     formData.append('whatNotDone', proofForm.whatNotDone);
 
     try {
-      await axiosInstance.put(`/tasks/${showCompleteModal.taskId}/complete`, formData, {
+      const res = await axiosInstance.put(`/tasks/${showCompleteModal.taskId}/complete`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
+      const updatedTask = res.data;
+      setGoals((prev) => prev.map((goal) => ({
+        ...goal,
+        tasks: (goal.tasks || []).map((task) => (
+          task._id === updatedTask._id ? updatedTask : task
+        )),
+        progress: calculateGoalProgress((goal.tasks || []).map((task) => (
+          task._id === updatedTask._id ? updatedTask : task
+        ))),
+      })));
       await refreshUser?.();
       setShowCompleteModal({ show: false, taskId: null });
       setProofImage(null);
       setProofForm({ proofSummary: '', completionSatisfaction: '3', obstacles: '', whatNotDone: '' });
-      fetchGoals();
     } catch (err) {
       console.error(err);
+    } finally {
+      setCompletingTask(false);
     }
   };
 
   const handleManualCompleteWeek = async () => {
+    if (completingWeek) return;
     if (window.confirm("Completing the week will lock all goals and tasks. You will not be able to modify anything. Continue?")) {
+      setCompletingWeek(true);
       try {
         await axiosInstance.post('/weeks/complete');
         fetchGoals(); // Should be empty now
         alert("Week archived successfully.");
       } catch (err) {
         alert(err.response?.data?.message || 'Error archiving week');
+      } finally {
+        setCompletingWeek(false);
       }
+    }
+  };
+
+  const handleDeleteGoal = async (goalId) => {
+    if (deletingGoalId) return;
+    if (!window.confirm('Delete this goal and all of its tasks?')) return;
+    const goalToDelete = goals.find((goal) => goal._id === goalId);
+    setDeletingGoalId(goalId);
+    try {
+      await axiosInstance.delete(`/goals/${goalId}`);
+      setGoals((prev) => prev.filter((goal) => goal._id !== goalId));
+      setExpandedTaskIds((prev) => prev.filter((taskId) => !(goalToDelete?.tasks || []).some((task) => task._id === taskId)));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeletingGoalId(null);
+    }
+  };
+
+  const handleDeleteTask = async (taskId, goalId) => {
+    if (deletingTaskId) return;
+    if (!window.confirm('Delete this task?')) return;
+    setDeletingTaskId(taskId);
+    try {
+      await axiosInstance.delete(`/tasks/${taskId}`);
+      setGoals((prev) => prev.map((goal) => {
+        if (goal._id !== goalId) return goal;
+        const updatedTasks = (goal.tasks || []).filter((task) => task._id !== taskId);
+        return {
+          ...goal,
+          tasks: updatedTasks,
+          progress: calculateGoalProgress(updatedTasks),
+        };
+      }));
+      setExpandedTaskIds((prev) => prev.filter((id) => id !== taskId));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeletingTaskId(null);
     }
   };
 
@@ -148,11 +234,12 @@ const Objectives = () => {
           <p className="text-gray-400">Plan your week and execute intensely.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full md:w-auto">
-          <button onClick={() => setShowGoalModal(true)} className="btn-primary flex items-center justify-center space-x-2 w-full sm:w-auto">
+          <button onClick={() => setShowGoalModal(true)} className="btn-primary flex items-center justify-center space-x-2 w-full sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed" disabled={creatingGoal || creatingTask || completingTask || completingWeek}>
             <Plus size={18} /> <span>New Goal</span>
           </button>
-          <button onClick={handleManualCompleteWeek} className="btn-secondary flex items-center justify-center space-x-2 text-brand-secondary border-brand-secondary/50 w-full sm:w-auto">
-            <Briefcase size={18} /> <span>Complete Week</span>
+          <button onClick={handleManualCompleteWeek} className="btn-secondary flex items-center justify-center space-x-2 text-brand-secondary border-brand-secondary/50 w-full sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed" disabled={creatingGoal || creatingTask || completingTask || completingWeek}>
+            {completingWeek ? <Loader2 size={18} className="animate-spin" /> : <Briefcase size={18} />}
+            <span>{completingWeek ? 'Completing...' : 'Complete Week'}</span>
           </button>
         </div>
       </div>
@@ -165,9 +252,18 @@ const Objectives = () => {
                 <h3 className="text-2xl font-bold text-white">{goal.name}</h3>
                 <p className="text-gray-400 mt-1">{goal.description}</p>
               </div>
-              <div className="text-right">
+              <div className="text-right flex flex-col items-end gap-2">
                 <span className="text-2xl font-bold text-brand-secondary">{goal.progress}%</span>
                 <p className="text-xs text-gray-500 uppercase tracking-wider">Completed</p>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteGoal(goal._id)}
+                  disabled={deletingGoalId === goal._id}
+                  className="inline-flex items-center gap-2 text-xs text-red-400 hover:text-red-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {deletingGoalId === goal._id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  <span>{deletingGoalId === goal._id ? 'Deleting...' : 'Delete Goal'}</span>
+                </button>
               </div>
             </div>
 
@@ -195,7 +291,8 @@ const Objectives = () => {
                     {task.status === 'pending' ? (
                       <button 
                         onClick={() => setShowCompleteModal({ show: true, taskId: task._id })}
-                        className="btn-secondary py-1.5 px-3 text-sm flex items-center space-x-1"
+                        className="btn-secondary py-1.5 px-3 text-sm flex items-center space-x-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                        disabled={completingTask}
                       >
                         <Check size={16} /> <span>Submit Proof</span>
                       </button>
@@ -208,6 +305,15 @@ const Objectives = () => {
                         <span className="text-sm font-medium">Verified</span>
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteTask(task._id, goal._id)}
+                      disabled={deletingTaskId === task._id}
+                      className="ml-2 inline-flex items-center gap-1 text-xs text-red-400 hover:text-red-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {deletingTaskId === task._id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                      <span>{deletingTaskId === task._id ? 'Deleting...' : 'Delete'}</span>
+                    </button>
                     </div>
                   </div>
                 ))
@@ -245,7 +351,16 @@ const Objectives = () => {
               <textarea placeholder="Description" value={goalForm.description} onChange={e => setGoalForm({...goalForm, description: e.target.value})} className="input-field min-h-24" />
               <div className="flex justify-end space-x-3 pt-4">
                 <button type="button" onClick={() => setShowGoalModal(false)} className="btn-secondary">Cancel</button>
-                <button type="submit" className="btn-primary">Save Goal</button>
+                <button type="submit" className="btn-primary disabled:opacity-60 disabled:cursor-not-allowed" disabled={creatingGoal}>
+                  {creatingGoal ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Saving...</span>
+                    </span>
+                  ) : (
+                    'Save Goal'
+                  )}
+                </button>
               </div>
             </form>
           </div>
@@ -280,8 +395,17 @@ const Objectives = () => {
                 <input type="text" placeholder="Task Name" required value={taskForm.name} onChange={e => setTaskForm({...taskForm, name: e.target.value})} className="input-field" />
                 <textarea placeholder="Description" value={taskForm.description} onChange={e => setTaskForm({...taskForm, description: e.target.value})} className="input-field min-h-24" />
                 <div className="flex justify-end space-x-3 pt-4 border-t border-dark-border mt-6">
-                  <button type="button" onClick={() => { setShowTaskModal({ show: false, goalId: null }); setSuggestion(''); }} className="btn-secondary">Cancel</button>
-                  <button type="submit" className="btn-primary">Add Task</button>
+                  <button type="button" onClick={() => { setShowTaskModal({ show: false, goalId: null }); setSuggestion(''); }} className="btn-secondary" disabled={creatingTask}>Cancel</button>
+                  <button type="submit" className="btn-primary disabled:opacity-60 disabled:cursor-not-allowed" disabled={creatingTask}>
+                    {creatingTask ? (
+                      <span className="inline-flex items-center justify-center gap-2">
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Adding...</span>
+                      </span>
+                    ) : (
+                      'Add Task'
+                    )}
+                  </button>
                 </div>
               </form>
             </div>
@@ -346,9 +470,9 @@ const Objectives = () => {
                </div>
 
               <div className="flex justify-end space-x-3 pt-4 border-t border-dark-border mt-6">
-                <button type="button" onClick={() => setShowCompleteModal({ show: false, taskId: null })} className="btn-secondary">Cancel</button>
-                <button type="submit" className="btn-primary flex items-center space-x-2">
-                   <Check size={16} /> <span>Submit & Complete</span>
+                <button type="button" onClick={() => setShowCompleteModal({ show: false, taskId: null })} className="btn-secondary" disabled={completingTask}>Cancel</button>
+                <button type="submit" className="btn-primary flex items-center space-x-2 disabled:opacity-60 disabled:cursor-not-allowed" disabled={completingTask}>
+                   {completingTask ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} <span>{completingTask ? 'Submitting...' : 'Submit & Complete'}</span>
                 </button>
               </div>
             </form>

@@ -26,8 +26,8 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={!isAuthenticated ? <Landing /> : <Navigate to="/dashboard" replace />} />
-      <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />} />
+      <Route path="/" element={!isAuthenticated ? <Landing /> : <Navigate to="/objectives" replace />} />
+      <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/objectives" replace />} />
 
       <Route element={
         <ProtectedRoute>
@@ -41,7 +41,7 @@ function App() {
         <Route path="/profile" element={<Profile />} />
       </Route>
 
-      <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/'} replace />} />
+      <Route path="*" element={<Navigate to={isAuthenticated ? '/objectives' : '/'} replace />} />
     </Routes>
   );
 }

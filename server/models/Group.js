@@ -33,6 +33,10 @@ const streakFreezeSchema = mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  requestedAt: {
+    type: Date,
+    default: Date.now,
+  },
   votes: {
     type: [streakFreezeVoteSchema],
     default: [],
@@ -60,6 +64,10 @@ const groupSchema = mongoose.Schema({
     default: true
   },
   members: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  inviteCodeAccessUsers: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
