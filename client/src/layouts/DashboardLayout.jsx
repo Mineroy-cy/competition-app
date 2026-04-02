@@ -1,16 +1,10 @@
 import React, { useContext } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Home, Target, Clock, Users, User, LogOut } from 'lucide-react';
+import { NavLink, Outlet } from 'react-router-dom';
+import { Home, Target, Clock, Users, User } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 
 const Sidebar = () => {
-  const { logout, user } = useContext(AuthContext);
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const { user } = useContext(AuthContext);
 
   const navLinks = [
     { name: 'Dashboard', path: '/dashboard', icon: <Home size={20} /> },
@@ -56,18 +50,11 @@ const Sidebar = () => {
               <p className="text-xs text-gray-500 truncate">Streak: {user?.currentStreak || 0} 🔥</p>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="mt-2 w-full flex items-center justify-center space-x-2 px-4 py-2 rounded-lg text-red-400 hover:bg-red-400/10 transition-colors"
-          >
-            <LogOut size={16} />
-            <span>Logout</span>
-          </button>
         </div>
       </div>
 
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-dark-card/95 backdrop-blur border-t border-dark-border px-2 py-2">
-        <div className="grid grid-cols-6 gap-1">
+        <div className="grid grid-cols-5 gap-1">
           {navLinks.map((link) => (
             <NavLink
               key={link.name}
@@ -82,15 +69,6 @@ const Sidebar = () => {
               <span className="mt-1 leading-none">{link.name}</span>
             </NavLink>
           ))}
-          <button
-            onClick={handleLogout}
-            className="flex flex-col items-center justify-center rounded-lg py-2 text-[11px] text-red-400"
-            aria-label="Logout"
-            type="button"
-          >
-            <LogOut size={20} />
-            <span className="mt-1 leading-none">Logout</span>
-          </button>
         </div>
       </div>
     </>

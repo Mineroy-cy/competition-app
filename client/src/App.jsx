@@ -4,6 +4,7 @@ import { AuthContext } from './context/AuthContext';
 
 // Layouts and Pages
 import DashboardLayout from './layouts/DashboardLayout';
+import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Objectives from './pages/Objectives';
@@ -25,22 +26,22 @@ function App() {
 
   return (
     <Routes>
+      <Route path="/" element={!isAuthenticated ? <Landing /> : <Navigate to="/dashboard" replace />} />
       <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />} />
-      
-      <Route path="/" element={
+
+      <Route element={
         <ProtectedRoute>
           <DashboardLayout />
         </ProtectedRoute>
       }>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="objectives" element={<Objectives />} />
-        <Route path="history" element={<History />} />
-        <Route path="groups" element={<Groups />} />
-        <Route path="profile" element={<Profile />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/objectives" element={<Objectives />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/groups" element={<Groups />} />
+        <Route path="/profile" element={<Profile />} />
       </Route>
-      
-      <Route path="*" element={<Navigate to="/login" replace />} />
+
+      <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/'} replace />} />
     </Routes>
   );
 }

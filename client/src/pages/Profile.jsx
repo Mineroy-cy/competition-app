@@ -2,9 +2,16 @@ import React, { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { User, Award, Flame, CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   if (!user) return <div>Loading...</div>;
 
@@ -13,6 +20,15 @@ const Profile = () => {
       <div>
         <h2 className="text-3xl font-bold text-white mb-2">My Profile</h2>
         <p className="text-gray-400">Manage your identity and accountability stats.</p>
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={handleLogout}
+          className="btn-secondary text-red-400 border-red-400/40 hover:bg-red-500/10"
+        >
+          Logout
+        </button>
       </div>
 
       <div className="glass-panel rounded-2xl p-8 flex items-center space-x-8 relative overflow-hidden">

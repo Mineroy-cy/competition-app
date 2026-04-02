@@ -1,10 +1,12 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock, User as UserIcon } from 'lucide-react';
 
 const Login = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const location = useLocation();
+  const initialMode = new URLSearchParams(location.search).get('mode');
+  const [isLogin, setIsLogin] = useState(initialMode !== 'signup');
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -28,10 +30,11 @@ const Login = () => {
     try {
       if (isLogin) {
         await login({ email: formData.email, password: formData.password });
+        navigate('/dashboard');
       } else {
         await register(formData);
+        navigate('/objectives');
       }
-      navigate('/dashboard');
     } catch (err) {
       setErrorMsg(err.response?.data?.message || 'Authentication failed');
     }
